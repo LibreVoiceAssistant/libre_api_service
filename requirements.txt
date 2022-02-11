@@ -1,0 +1,9 @@
+pyowm
+json_database
+aiohttp
+pydantic
+aiofiles
+flask
+pytz
+tzwhere
+PyAsyncWeatherAPI
