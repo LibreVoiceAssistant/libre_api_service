@@ -7,21 +7,21 @@ from modules.storage import Storage
 import pytz
 from tzwhere import tzwhere
 
-from weather_api import WeatherAPI as PyWeatherAPI 
+from weather_api import WeatherAPI as PyWeatherAPI
 
 class WeatherAPI:
     def __init__(self) -> None:
         self._storage = Storage()
         _key = base64.b64decode(self._storage.set_api_connection_config()).decode("utf-8")
         self.w_api = PyWeatherAPI(_key)
-            
+
 class WeatherOWM:
-    
+
     def __init__(self) -> None:
         self._storage = Storage()
         self._owm = pyowm.OWM(base64.b64decode(self._storage.set_owm_api_config()).decode("utf-8"))
         self.manager = self._owm.weather_manager()
-    
+
     def map_to_owm_report_current(self, current):
         return {
            "clouds":  current["clouds"],
@@ -44,12 +44,12 @@ class WeatherOWM:
             }
             ],
            "windSpeed": current["wind"]["speed"],
-           "windDeg": current["wind"]["deg"]           
+           "windDeg": current["wind"]["deg"]
         }
-        
+
     def map_to_owm_daily(self, forecast_daily):
         daily_new = []
-        for forecast_type in forecast_daily:      
+        for forecast_type in forecast_daily:
         # map keys from forecast_type to formated_type
             daily = {
                 "clouds": forecast_type["clouds"],
@@ -89,7 +89,7 @@ class WeatherOWM:
                 "windSpeed": forecast_type["wind"]["speed"]
             }
             daily_new.append(daily)
-            
+
         return daily_new
 
     def map_to_owm_hourly(self, forecast_hourly):
@@ -114,22 +114,22 @@ class WeatherOWM:
                     }],
                 "windDeg": forecast_type["wind"]["deg"],
                 "windGust": forecast_type["wind"]["gust"],
-                "windSpeed": forecast_type["wind"]["speed"]            
+                "windSpeed": forecast_type["wind"]["speed"]
             }
             hourly_new.append(hourly)
-            
+
         return hourly_new
-    
+
     def get_timezone_details(self, lat, lon):
         tz = tzwhere.tzwhere()
         timezone_str = tz.tzNameAt(lat, lon)
         timezone = pytz.timezone(timezone_str)
         dt = datetime.datetime.now()
         timezone_offset = timezone.utcoffset(dt)
-        # convert timezone offset to seconds
+        print(timezone, timezone_offset)
         timezone_offset_seconds = timezone_offset.total_seconds()
         return {"timezone": timezone_str, "offset": timezone_offset_seconds, "lat": lat, "lon": lon}
-        
+
     def generate_one_report(self, current_obj, daily_obj, hourly_obj, timezone_obj):
         return {
             "current": current_obj,
@@ -138,5 +138,5 @@ class WeatherOWM:
             "timezone": timezone_obj["timezone"],
             "timezoneOffset": timezone_obj["offset"],
             "lat": timezone_obj["lat"],
-            "lon": timezone_obj["lon"]           
+            "lon": timezone_obj["lon"]
         }
