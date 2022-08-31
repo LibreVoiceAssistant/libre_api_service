@@ -44,3 +44,11 @@ class Storage:
         except Exception as e:
             print(e)
             return " "
+        
+    def set_wolfram_appid_config(self):
+        try:
+            with open("/etc/wapi/wolfram-appid.conf", "r") as conf_file:
+                return conf_file.read()
+        except Exception as e:
+            print(e)
+            return " "
