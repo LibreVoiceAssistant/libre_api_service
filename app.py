@@ -407,6 +407,103 @@ def search_recipe():
         return response.json()
     else:
         return make_response(jsonify({'status': 'error'}), 400)
+    
+@app.route('/wolframalpha/spoken/<string:uuid>', methods=['GET', 'POST'])
+def wolfie_spoken(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_wolfram_appid_config()).decode("utf-8")
+
+    query = request.args.get("input") or request.args.get("i")
+    units = request.args.get("units") or request.args.get("u")
+
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            query = request_params.get('input', "") or request_params.get('i', "")
+            units = request_params.get('units', "") or request_params.get('u', "")
+
+    if units != "metric":
+        units = "imperial"
+        
+    if request.headers.get('session_challenge') == read_session_challenge():
+        if check_if_device_is_registered(uuid):
+            url = 'http://api.wolframalpha.com/v1/spoken'
+            params = {"appid": _app_id,
+                        "i": query,
+                        "units": units}
+            answer = requests.get(url, params=params).text
+            if answer:
+                return answer
+            else:
+                return make_response(jsonify({'status': 'error'}), 400)
+        else:
+            return make_response(jsonify({'status': 'not authorized'}), 401)
+    else:
+        return make_response(jsonify({'status': 'invalid session'}), 401)
+
+@app.route('/wolframalpha/simple/<string:uuid>', methods=['GET', 'POST'])
+def wolfie_simple(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_wolfram_appid_config()).decode("utf-8")
+    query = request.args.get("input") or request.args.get("i")
+    units = request.args.get("units") or request.args.get("u")
+
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            query = request_params.get('input', "") or request_params.get('i', "")
+            units = request_params.get('units', "") or request_params.get('u', "")
+
+    if units != "metric":
+        units = "imperial"
+        
+    if request.headers.get('session_challenge') == read_session_challenge():
+        if check_if_device_is_registered(uuid):
+            url = 'http://api.wolframalpha.com/v1/simple'
+            params = {"appid": _app_id,
+                        "i": query,
+                        "units": units}
+            answer = requests.get(url, params=params).text
+            
+            if answer:
+                return answer
+            else:
+                return make_response(jsonify({'status': 'error'}), 400)
+        else:
+            return make_response(jsonify({'status': 'not authorized'}), 401)
+    else:
+        return make_response(jsonify({'status': 'invalid session'}), 401)
+
+@app.route('/wolframalpha/full/<string:uuid>', methods=['GET', 'POST'])
+def wolfie_full(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_wolfram_appid_config()).decode("utf-8")
+    query = request.args.get("input") or request.args.get("i")
+    units = request.args.get("units") or request.args.get("u")
+
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            query = request_params.get('input', "") or request_params.get('i', "")
+            units = request_params.get('units', "") or request_params.get('u', "")
+
+    if request.headers.get('session_challenge') == read_session_challenge():
+        if check_if_device_is_registered(uuid):
+            url = 'http://api.wolframalpha.com/v2/query'
+            params = {"appid": _app_id,
+                        "input": query,
+                        "output": "json",
+                        "units": units}
+            answer = requests.get(url, params=params).json()
+            
+            if answer:
+                return answer
+            else:
+                return make_response(jsonify({'status': 'error'}), 400)
+        else:
+            return make_response(jsonify({'status': 'not authorized'}), 401)
+    else:
+        return make_response(jsonify({'status': 'invalid session'}), 401)
 
 if __name__ == '__main__':
     app.run(host="127.0.0.2", debug=False)
