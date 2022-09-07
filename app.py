@@ -96,12 +96,31 @@ def register_device(uuid, key):
         response.headers['Content-Type'] = 'application/json'
         return response
 
-@app.route('/weather/generate_current_weather_report/<string:uuid>/<string:location>', methods=['GET'])
-def generate_current_weather_report(uuid, location):
+@app.route('/weather/generate_current_weather_report/<string:uuid>', methods=['GET', 'POST'])
+def generate_current_weather_report(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_owm_api_config()).decode("utf-8")
+
     try:
         # check request header for backend
         backend = request.headers.get('backend')
         selected_backend = None
+
+        if request.method == 'GET':
+            lat = request.args.get('lat', "")
+            lon = request.args.get('lon', "")
+            lang = request.args.get('lang', "")
+            units = request.args.get('units', "")
+            location = request.args.get('location', "")
+
+        if request.method == 'POST':
+            request_params = request.form
+            if request_params:
+                lat = request_params.get('lat', "")
+                lon = request_params.get('lon', "")
+                lang = request_params.get('lang', "")
+                units = request_params.get('units', "")
+                location = request_params.get('location', "")
 
         if backend:
             selected_backend = backend
@@ -113,7 +132,15 @@ def generate_current_weather_report(uuid, location):
             # search the list of dictionaries if the uuid key has the same value as the uuid parameter
             if check_if_device_is_registered(uuid):
                 if selected_backend == "OWM":
-                    current_report = loop.run_until_complete(weather_app_owm.manager.weather_at_place(location))
+                    params = {
+                        "lat": lat,
+                        "lon": lon,
+                        "lang": lang,
+                        "units": units,
+                        "appid": _app_id
+                    }
+                    url = "https://api.openweathermap.org/data/2.5/weather"
+                    current_report = requests.get(url, params=params)
                 else:
                     current_report = loop.run_until_complete(weather_app_wapi.current(location))
 
@@ -121,11 +148,11 @@ def generate_current_weather_report(uuid, location):
                 response.headers['Content-Type'] = 'application/json'
                 return response
             else:
-                response = make_response(jsonify({'status': 'error'}), 400)
+                response = make_response(jsonify({'status': 'not authorized'}), 401)
                 response.headers['Content-Type'] = 'application/json'
                 return response
         else:
-            response = make_response(jsonify({'status': 'error'}), 400)
+            response = make_response(jsonify({'status': 'invalid session'}), 401)
             response.headers['Content-Type'] = 'application/json'
             return response
 
@@ -135,12 +162,32 @@ def generate_current_weather_report(uuid, location):
         response.headers['Content-Type'] = 'application/json'
         return response
 
-@app.route('/weather/generate_forecast_weather_report/<string:uuid>/<string:location>', methods=['GET'])
-def generate_forecast_weather_report(uuid, location):
+@app.route('/weather/generate_forecast_weather_report/<string:uuid>', methods=['GET', 'POST'])
+def generate_forecast_weather_report(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_owm_api_config()).decode("utf-8")
+    # Requires a paid subscription to OpenWeatherMap
+
     try:
         # check request header for backend
         backend = request.headers.get('backend')
         selected_backend = None
+
+        if request.method == 'GET':
+            lat = request.args.get('lat', "")
+            lon = request.args.get('lon', "")
+            lang = request.args.get('lang', "")
+            units = request.args.get('units', "")
+            location = request.args.get('location', "")
+
+        if request.method == 'POST':
+            request_params = request.form
+            if request_params:
+                lat = request_params.get('lat', "")
+                lon = request_params.get('lon', "")
+                lang = request_params.get('lang', "")
+                units = request_params.get('units', "")
+                location = request_params.get('location', "")
 
         if backend:
             selected_backend = backend
@@ -151,24 +198,52 @@ def generate_forecast_weather_report(uuid, location):
             # search the list of dictionaries if the uuid key has the same value as the uuid parameter
             if check_if_device_is_registered(uuid):
                 if selected_backend == "OWM":
-                    forecast_report = loop.run_until_complete(weather_app_owm.manager.forecast_at_place(location))
+                    params = {
+                        "lat": lat,
+                        "lon": lon,
+                        "lang": lang,
+                        "units": units,
+                        "appid": _app_id
+                    }
+
+                    url = "https://api.openweathermap.org/data/2.5/forecast/daily"
+                    forecast_report = requests.get(url, params=params)
                 else:
                     forecast_report = loop.run_until_complete(weather_app_wapi.forecast(location))
                 return make_response(forecast_report.json(), 200)
             else:
-                return make_response(jsonify({'status': 'error'}), 400)
+                return make_response(jsonify({'status': 'not authorized'}), 401)
         else:
-            return make_response(jsonify({'status': 'error'}), 400)
+            return make_response(jsonify({'status': 'invalid session'}), 401)
     except Exception as e:
         print(e)
         return make_response(jsonify({'error': str(e)}), 500)
 
-@app.route('/weather/generate_hourly_weather_report/<string:uuid>/<string:location>', methods=['GET'])
-def generate_hourly_weather_report(uuid, location):
+@app.route('/weather/generate_hourly_weather_report/<string:uuid>', methods=['GET', 'POST'])
+def generate_hourly_weather_report(uuid):
+    _storage = Storage()
+    _app_id = base64.b64decode(_storage.set_owm_api_config()).decode("utf-8")
+
     try:
         # check request header for backend
         backend = request.headers.get('backend')
         selected_backend = None
+
+        if request.method == 'GET':
+            lat = request.args.get('lat', "")
+            lon = request.args.get('lon', "")
+            lang = request.args.get('lang', "")
+            units = request.args.get('units', "")
+            location = request.args.get('location', "")
+
+        if request.method == 'POST':
+            request_params = request.form
+            if request_params:
+                lat = request_params.get('lat', "")
+                lon = request_params.get('lon', "")
+                lang = request_params.get('lang', "")
+                units = request_params.get('units', "")
+                location = request_params.get('location', "")
 
         if backend:
             selected_backend = backend
@@ -179,14 +254,22 @@ def generate_hourly_weather_report(uuid, location):
             # search the list of dictionaries if the uuid key has the same value as the uuid parameter
             if check_if_device_is_registered(uuid):
                 if selected_backend == "OWM":
-                    hourly_report = loop.run_until_complete(weather_app_owm.manager.hourly_forecast(location))
+                    params = {
+                        "lat": lat,
+                        "lon": lon,
+                        "lang": lang,
+                        "units": units,
+                        "appid": _app_id
+                    }
+                    url = "https://api.openweathermap.org/data/2.5/forecast"
+                    hourly_report = requests.get(url, params=params)
                 else:
                     hourly_report = loop.run_until_complete(weather_app_wapi.day(location, datetime.date.today()))
                 return make_response(hourly_report.json(), 200)
             else:
-                return make_response(jsonify({'status': 'error'}), 400)
+                return make_response(jsonify({'status': 'not authorized'}), 401)
         else:
-            return make_response(jsonify({'status': 'error'}), 400)
+            return make_response(jsonify({'status': 'invalid session'}), 401)
 
     except Exception as e:
         print(e)
@@ -480,21 +563,27 @@ def wolfie_full(uuid):
     _app_id = base64.b64decode(_storage.set_wolfram_appid_config()).decode("utf-8")
     query = request.args.get("input") or request.args.get("i")
     units = request.args.get("units") or request.args.get("u")
+    output = request.args.get("output", "json") or request.args.get("o", "json")
 
     if request.method == 'POST':
         request_params = request.form
         if request_params:
             query = request_params.get('input', "") or request_params.get('i', "")
             units = request_params.get('units', "") or request_params.get('u', "")
+            output = request_params.get('output', "json") or request_params.get('o', "json")
 
     if request.headers.get('session_challenge') == read_session_challenge():
         if check_if_device_is_registered(uuid):
             url = 'http://api.wolframalpha.com/v2/query'
             params = {"appid": _app_id,
                         "input": query,
-                        "output": "json",
+                        "output": output,
                         "units": units}
-            answer = requests.get(url, params=params).json()
+
+            if output == "json":
+                answer = requests.get(url, params=params).json()
+            else:
+                answer = requests.get(url, params=params)
             
             if answer:
                 return answer
