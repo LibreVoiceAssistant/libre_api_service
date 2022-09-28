@@ -7,3 +7,5 @@ flask
 pytz
 tzwhere
 PyAsyncWeatherAPI
+geocoder
+timezonefinder

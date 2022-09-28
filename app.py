@@ -1,19 +1,22 @@
+import asyncio
+import base64
+import datetime
+import json
 import os
 import re
-import asyncio
-import json
-import base64
-import requests
+import threading
+import uuid as uuid_challenge
 from sqlite3 import paramstyle
 from urllib import response
-from json_database import JsonDatabase
-from flask import Flask, render_template, jsonify, request, make_response, redirect
 
-from weather import WeatherAPI, WeatherOWM
+import requests
+from flask import (Flask, jsonify, make_response, redirect, render_template,
+                   request)
+from json_database import JsonDatabase
+
 from modules.storage import Storage
-import datetime
-import uuid as uuid_challenge
-import threading
+from modules.helper import Helper
+from weather import WeatherAPI, WeatherOWM
 
 app = Flask(__name__)
 device_registry = JsonDatabase('/tmp/ovos_api.json')
@@ -593,6 +596,118 @@ def wolfie_full(uuid):
             return make_response(jsonify({'status': 'not authorized'}), 401)
     else:
         return make_response(jsonify({'status': 'invalid session'}), 401)
+
+@app.route('/geolocate/ip/', methods=['GET', 'POST'])
+def geolocate_using_ip_address():
+    ip = request.args.get("address", "") or request.args.get("a", "")
+    
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            ip = request_params.get('address', "") or request_params.get('a', "")
+    
+    if not ip or ip in ["0.0.0.0", "127.0.0.1"]:
+        ip = requests.get('https://api.ipify.org').text
+    
+    fields = "status,country,countryCode,region,regionName,city,lat,lon,timezone,query"
+    data = requests.get("http://ip-api.com/json/" + ip,
+                        params={"fields": fields}).json()
+    region_data = {"code": data["region"], "name": data["regionName"],
+                   "country": {
+                       "code": data["countryCode"],
+                       "name": data["country"]}}
+    city_data = {"code": data["city"], "name": data["city"],
+                 "state": region_data,
+                 "region": region_data}
+    timezone_data = {"code": data["timezone"],
+                     "name": data["timezone"],
+                     "dstOffset": 3600000,
+                     "offset": -21600000}
+    coordinate_data = {"latitude": float(data["lat"]),
+                       "longitude": float(data["lon"])}
+    
+    if city_data and timezone_data and coordinate_data:
+        response = make_response(jsonify({'city': city_data,
+                                          'timezone': timezone_data,
+                                          'coordinates': coordinate_data}), 200)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    else:
+        return make_response(jsonify({'status': 'error'}), 400)
+
+@app.route('/geolocate/address/', methods=['GET', 'POST'])
+def geolocate_using_address():
+    _helper = Helper()
+    location_query = request.args.get("address", "") or request.args.get("a", "")
+    
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            location_query = request_params.get('address', "") or request_params.get('a', "")
+            
+    if location_query:
+        location_data = _helper.geolocate(location_query)
+        if location_data:
+            response = make_response(jsonify(location_data), 200)
+            response.headers['Content-Type'] = 'application/json'
+            return response
+
+@app.route('/geolocate/location/config/', methods=['GET', 'POST'])
+def gelocate_location_config():
+    _helper = Helper()
+    location_query = request.args.get("address", "") or request.args.get("a", "")
+    
+    if request.method == 'POST':
+        request_params = request.form
+        if request_params:
+            location_query = request_params.get('address', "") or request_params.get('a', "")
+    
+    location = {
+        "city": {
+            "code": "",
+            "name": "",
+            "state": {
+                "code": "",
+                "name": "",
+                "country": {
+                    "code": "US",
+                    "name": "United States"
+                }
+            }
+        },
+        "coordinate": {
+            "latitude": 37.2,
+            "longitude": 121.53
+        },
+        "timezone": {
+            "dstOffset": 3600000,
+            "offset": -21600000
+        }
+    }
+        
+    if location_query:
+        data = _helper.geolocate(location_query)
+        location["city"]["code"] = data["city"]
+        location["city"]["name"] = data["city"]
+        location["city"]["state"]["name"] = data["state"]
+        # TODO state code
+        location["city"]["state"]["code"] = data["state"]
+        location["city"]["state"]["country"]["name"] = data["country"]
+        # TODO country code
+        location["city"]["state"]["country"]["code"] = data["country"]
+        location["coordinate"]["latitude"] = data["lat"]
+        location["coordinate"]["longitude"] = data["lon"]
+
+        timezone = _helper.get_timezone(data["lat"], data["lon"])
+        location["timezone"]["name"] = data["timezone"]
+        location["timezone"]["code"] = timezone
+    
+        response = make_response(jsonify(location), 200)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    else:
+        return make_response(jsonify({'status': 'error'}), 400)
+
 
 if __name__ == '__main__':
     app.run(host="127.0.0.2", debug=False)
