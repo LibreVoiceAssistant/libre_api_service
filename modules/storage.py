@@ -1,3 +1,7 @@
+import imp
+
+
+import json
 
 class Storage:
     def __init__(self):
@@ -49,6 +53,15 @@ class Storage:
         try:
             with open("/etc/wapi/wolfram-appid.conf", "r") as conf_file:
                 return conf_file.read()
+        except Exception as e:
+            print(e)
+            return " "
+        
+    def mail_config(self):
+        # Open json file and return json dict
+        try:
+            with open("/etc/wapi/mail-conf.json", "r") as conf_file:
+                return json.load(conf_file)
         except Exception as e:
             print(e)
             return " "

@@ -16,6 +16,7 @@ from json_database import JsonDatabase
 
 from modules.storage import Storage
 from modules.helper import Helper
+from ovos_utils.smtp_utils import send_smtp
 from weather import WeatherAPI, WeatherOWM
 
 app = Flask(__name__)
@@ -707,6 +708,40 @@ def gelocate_location_config():
         return response
     else:
         return make_response(jsonify({'status': 'error'}), 400)
+
+
+@app.route('/send/mail/<string:uuid>', methods=['POST'])
+def send_email(uuid):
+    _storage = Storage()
+    _mail_config = _storage.mail_config()
+    _user = base64.b64decode(_mail_config["user"]).decode("utf-8")
+    _key = base64.b64decode(_mail_config["key"]).decode("utf-8")
+    _host = base64.b64decode(_mail_config["host"]).decode("utf-8")
+    _port = base64.b64decode(_mail_config["port"]).decode("utf-8")
+    _sender = base64.b64decode(_mail_config["sender"]).decode("utf-8")
+
+    try:
+        # check request header for backend
+        params = request.form
+        if params:
+            recipient = float(params.get('recipient', ""))
+            subject = float(params.get('subject', ""))
+            body = float(params.get('body', ""))
+
+            if request.headers.get('session_challenge') == read_session_challenge():
+                if check_if_device_is_registered(uuid):
+                    send_smtp(_user, _key, _sender, recipient, subject, body, _host, _port)
+                    return make_response(jsonify({'status': 'success'}), 200)
+                else:
+                    return make_response(jsonify({'status': 'not authorized'}), 401)
+            else:
+                return make_response(jsonify({'status': 'invalid session'}), 401)
+        else:
+            return make_response(jsonify({'status': 'invalid data'}), 401)
+
+    except Exception as e:
+        print(e)
+        return make_response(jsonify({'error': str(e)}), 500)
 
 
 if __name__ == '__main__':
