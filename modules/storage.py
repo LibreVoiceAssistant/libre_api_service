@@ -62,3 +62,19 @@ class Storage:
         except Exception as e:
             print(e)
             return " "
+    
+    def set_cgpt_api_config(self):
+        try:
+            with open("/etc/wapi/cgpt-api.conf", "r") as conf_file:
+                return conf_file.read()
+        except Exception as e:
+            print(e)
+            return " "
+    
+    def set_cgpt_engine_config(self):
+        try:
+            with open("/etc/wapi/cgpt-engine.conf", "r") as conf_file:
+                return conf_file.read()
+        except Exception as e:
+            print(e)
+            return " "
