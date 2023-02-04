@@ -5,6 +5,7 @@ import json
 import os
 import re
 import threading
+import openai as ai
 import uuid as uuid_challenge
 from sqlite3 import paramstyle
 from urllib import response
@@ -709,6 +710,82 @@ def gelocate_location_config():
     else:
         return make_response(jsonify({'status': 'error'}), 400)
 
+@app.route('/geolocate/reverse/', methods=['GET', 'POST'])
+def reverse_geolocate():
+    _helper = Helper()
+    _lat = request.args.get("lat", "") or request.args.get("latitude", "")
+    _lon = request.args.get("lon", "") or request.args.get("longitude", "")
+    
+    if request.method == 'POST':
+        _lat = request.form.get("lat", "") or request.form.get("latitude", "")
+        _lon = request.form.get("lon", "") or request.form.get("longitude", "")
+    
+    url = "https://nominatim.openstreetmap.org/reverse"
+    details = requests.get(url, params={"lat": _lat, "lon": _lon, "format": "json"}).json()
+    address = details.get("address")
+    location = {
+        "address": details["display_name"],
+        "city": {
+            "code": address.get("postcode") or "",
+            "name": address.get("city") or
+                    address.get("village") or
+                    address.get("county") or "",
+            "state": {
+                "code": address.get("state_code") or
+                        address.get("ISO3166-2-lvl4") or "",
+                "name": address.get("state") or "",
+                "country": {
+                    "code": address.get("country_code") or "",
+                    "name": address.get("country") or "",
+                }
+            }
+        },
+        "coordinate": {
+            "latitude": details.get("lat") or _lat,
+            "longitude": details.get("lon") or _lon
+        }
+    }
+    if "timezone" not in location:
+        location["timezone"] = _helper.get_timezone(
+            lon=location["coordinate"]["longitude"],
+            lat=location["coordinate"]["latitude"])
+
+    if location:
+        response = make_response(jsonify(location), 200)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    else:
+        return make_response(jsonify({'status': 'error'}), 400)
+    
+@app.route('/cgpt/call_request/<string:uuid>', methods=['GET', 'POST'])
+def make_cgpt_request(uuid):
+    _storage = Storage()
+    _api_key = base64.b64decode(_storage.set_cgpt_api_config()).decode("utf-8")
+    _def_engine = _storage.set_cgpt_engine_config()
+    _prompt = request.args.get("prompt", "") or request.args.get("p", "")
+    _stop = request.args.get("stop", "\nHuman: ") or request.args.get("s", "\nHuman: ")
+    _engine = request.args.get("engine", _def_engine) or request.args.get("e", _def_engine)
+    
+    if request.method == 'POST':
+        _prompt = request.form.get('prompt', "") or request.form.get('p', "")
+        _stop = request.form.get('stop', "\nHuman: ") or request.form.get('s', "\nHuman: ")
+        _engine = request.form.get('engine', _def_engine) or request.form.get('e', _def_engine)
+        
+    if _prompt and _stop and _engine:
+        if request.headers.get('session_challenge') == read_session_challenge():
+            if check_if_device_is_registered(uuid):
+                ai.api_key = _api_key
+                response =  ai.Completion().create(prompt=_prompt, engine=_engine, temperature=0.85, 
+                                                   top_p=1, frequency_penalty=0,
+                                                   presence_penalty=0.7, best_of=2, max_tokens=100, stop=_stop)
+                if response:
+                    return response.choices[0].text
+                else:
+                    return make_response(jsonify({'status': 'error'}), 400)
+            else:
+                return make_response(jsonify({'status': 'not authorized'}), 401)
+        else:
+            return make_response(jsonify({'status': 'invalid session'}), 401)
 
 @app.route('/send/mail/<string:uuid>', methods=['POST'])
 def send_email(uuid):

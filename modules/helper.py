@@ -27,4 +27,4 @@ class Helper:
     
     def get_timezone(self, latitude, longitude):
         tf = TimezoneFinder()
-        return tf.timezone_at(lng=longitude, lat=latitude)    
+        return tf.timezone_at(lng=longitude, lat=latitude)

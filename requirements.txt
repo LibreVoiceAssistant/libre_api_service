@@ -10,3 +10,4 @@ PyAsyncWeatherAPI
 geocoder
 timezonefinder
 ovos-utils==0.0.25a10
+openai
